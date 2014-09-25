@@ -1,0 +1,5 @@
+= coppa
+
+Generate this with
+    coppa rdoc
+After you have described your command line interface

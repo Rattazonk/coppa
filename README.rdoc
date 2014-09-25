@@ -1,0 +1,6 @@
+= coppa
+
+Describe your project here
+
+:include:coppa.rdoc
+
