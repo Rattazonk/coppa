@@ -41,7 +41,7 @@ command :up do |c|
 			search_path = local_path = File.expand_path local_path
 			server = nil
 			matching_path_name = nil
-			while server.nil? and search_path != '/'
+			until not server.nil? or search_path == '/'
 				search_path = File.expand_path "..", search_path
 				server = global_options[:config].find do |server|
 					matching_path_name = server["local"]["paths"].key search_path
@@ -61,7 +61,7 @@ command :up do |c|
   end
 end
 
-desc 'Describe sync here'
+desc 'not implemented yet'
 arg_name 'Describe arguments to sync here'
 command :sync do |c|
   c.action do |global_options,options,args|

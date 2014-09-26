@@ -47,3 +47,11 @@ coppa <direction>(up|down) -l local/path -r --remote-path /remote/path -u remote
 ```
 coppa dump remoteuser@remoteurl:/absolute/remote/path [--from-db dbuser@dburl --from-db-pass remotedbpassword] /local/path --to-db dbuser@dburl --to-db-pass
 ```
+
+# Copparc
+
+Copparc is the default configuration file and you can find it in ~/.copparc. Its written in YAML
+
+# TODO
+
+- implement ARGF to support piped in files
