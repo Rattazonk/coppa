@@ -2,6 +2,8 @@
 require 'gli'
 begin # XXX: Remove this begin/rescue before distributing your app
 require 'coppa'
+require 'net/scp'
+
 rescue LoadError
   STDERR.puts "In development, you need to use `bundle exec bin/coppa` to run your app"
   STDERR.puts "At install-time, RubyGems will make sure lib, etc. are in the load path"
@@ -11,38 +13,51 @@ end
 
 include GLI::App
 
-program_desc 'Describe your application here'
+program_desc 'Coppa helps me uploading files to servers'
 
 version Coppa::VERSION
 
 subcommand_option_handling :normal
 arguments :strict
 
-desc 'Describe some switch here'
-switch [:s,:switch]
+switch [:v,:verbose], desc: 'Display verbose output'
 
-desc 'Describe some flag here'
-default_value 'the default'
-arg_name 'The name of the argument'
-flag [:f,:flagname]
+flag [:c,:'config-file'],
+	default_value: File.join(ENV['HOME'], '.copparc'),
+	arg_name: 'Config file path',
+	dec: 'Path of the coppa config file'
 
-desc 'Describe upload here'
+
+desc 'Is used to upload to the corresponding server'
 arg_name 'Describe arguments to upload here'
-command :upload do |c|
-  c.desc 'Describe a switch to upload'
-  c.switch :s
+command :up do |c|
+	c.flag [:r, :'remote-path'],
+		arg_name: 'Path on the remote machine'
 
-  c.desc 'Describe a flag to upload'
-  c.default_value 'default'
-  c.flag :f
   c.action do |global_options,options,args|
-
     # Your command logic here
-     
+		local_path = args.shift
+		if local_path
+			search_path = local_path = File.expand_path local_path
+			server = nil
+			matching_path_name = nil
+			while server.nil? and search_path != '/'
+				search_path = File.expand_path "..", search_path
+				server = global_options[:config].find do |server|
+					matching_path_name = server["local"]["paths"].key search_path
+				end
+			end
+			puts "Using server configuration of #{server["name"]}" if global_options[:verbose]
+			remote_path = server["remote"]["paths"][matching_path_name]
+			remote_path << local_path.sub(server["local"]["paths"][matching_path_name], '')
+			puts "Upload #{local_path} to #{remote_path}." if global_options[:verbose]
+			Net::SCP.start(server["host"], server["user"], password: server["password"]) do |scp|
+				puts 'Started scp' if global_options[:verbose]
+				scp.upload local_path, remote_path
+			end
+		end
     # If you have any errors, just raise them
     # raise "that command made no sense"
-
-    puts "upload command ran"
   end
 end
 
@@ -60,7 +75,19 @@ pre do |global,command,options,args|
   # chosen command
   # Use skips_pre before a command to skip this block
   # on that command only
-  true
+	config_loaded = false
+
+	config_path = File.absolute_path global[:'config-file']
+	puts "Using #{config_path} as config file. " if global[:verbose]
+	
+	if File.exists?(config_path) && File.readable?(config_path)
+		file = File.open config_path, "rb"
+		global[:config] = YAML.load file.read
+		file.close
+	else
+		global[:config] = {}
+	end
+	true
 end
 
 post do |global,command,options,args|
