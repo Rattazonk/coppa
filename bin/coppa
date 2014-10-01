@@ -2,7 +2,8 @@
 require 'gli'
 begin # XXX: Remove this begin/rescue before distributing your app
 require 'coppa'
-require 'net/scp'
+require 'net/ssh'
+require 'net/sftp'
 
 rescue LoadError
   STDERR.puts "In development, you need to use `bundle exec bin/coppa` to run your app"
@@ -51,9 +52,25 @@ command :up do |c|
 			remote_path = server["remote"]["paths"][matching_path_name]
 			remote_path << local_path.sub(server["local"]["paths"][matching_path_name], '')
 			puts "Upload #{local_path} to #{remote_path}." if global_options[:verbose]
-			Net::SCP.start(server["host"], server["user"], password: server["password"]) do |scp|
-				puts 'Started scp' if global_options[:verbose]
-				scp.upload local_path, remote_path
+			rescued = false
+			begin 
+				Net::SFTP.start(server["host"], server["user"], password: server["password"]) do |sftp|
+					puts 'Connected to SFTP' if global_options[:verbose]
+					sftp.upload local_path, remote_path
+				end
+			rescue Net::SFTP::StatusException => e
+				raise e if rescued or e.code ==! 2
+				rescued = true
+				puts "Remote directory didnt exist, so we try to create it." if global_options[:verbose]
+				begin
+					Net::SFTP.start(server["host"], server["user"], password: server["password"]) do |sftp|
+						sftp.mkdir! File.dirname(remote_path)
+					end
+					retry
+				rescue Exception => e
+					puts e.message
+					puts e.backtrace
+				end
 			end
 		end
     # If you have any errors, just raise them
